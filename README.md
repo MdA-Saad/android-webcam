@@ -14,7 +14,7 @@ Most "Phone-as-Webcam" solutions rely on closed-source drivers or laggy network 
 
 ---
 
-## 📊 Comparison
+## Comparison
 | Method | Latency | Privacy | Quality |
 | :--- | :--- | :--- | :--- |
 | **Commercial Apps (DroidCam, etc.)** | Moderate | Closed Source | Capped (Free) |
@@ -30,7 +30,6 @@ Most "Phone-as-Webcam" solutions rely on closed-source drivers or laggy network 
 ---
 
 ## How it Works
-
 
 1.  **Capture:** Your phone hardware compresses the feed.
 2.  **Transport:** Frames travel over USB/ADB as a raw byte stream.
@@ -66,6 +65,38 @@ cp config.example.conf config.conf
 # Edit config.conf with text editor to set your resolution/device ID
 ./start-webcam.sh
 ```
+---
+
+## Usage Instructions
+
+Once you have completed the installation via `./install.sh`, follow these steps to start using your phone as a high-fidelity webcam.
+
+### Method 1: Wired (Lowest Latency)
+*Best for professional meetings, streaming, and AI detection.*
+
+1.  **Connect:** Plug your Android phone into your PC via a USB cable.
+2.  **Authorize:** If prompted on your phone, allow **USB Debugging**.
+3.  **Launch:** 
+    *   **GUI:** Double click on **"Android Webcam"**.
+    *   **CLI:** Run `./start-webcam.sh` from the terminal.
+
+---
+
+### Method 2: Wireless (ADB over WiFi)
+*Best for freedom of movement. Note: Latency may increase slightly based on your router.*
+
+1.  **Initial Pair:** Connect your phone via USB cable **one last time**.
+2.  **Enable WiFi Mode:** Run the following command in your terminal:
+    ```bash
+    adb tcpip 5555
+    ```
+3.  **Identify IP:** Find your phone's IP address (Settings > About Phone > Status or WiFi settings). It usually looks like `192.168.1.XX`.
+4.  **Connect Wirelessly:** Disconnect the cable and run:
+    
+```bash
+    adb connect [YOUR_PHONE_IP]:5555
+    ```
+5.  **Launch:** Click the **Android Webcam** icon or run `./start-webcam.sh`.
 
 ---
 
