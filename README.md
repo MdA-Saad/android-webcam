@@ -1,3 +1,4 @@
+![Latency](https://img.shields.io/badge/latency-35ms-brightgreen)
 # Use android phone as virtual webcam on linux with low latency
 ### A Low-Latency, Open-Source Approach using `scrcpy` and `v4l2loopback`
 ### The "Pro" Linux Pipe (`scrcpy` + `v4l2`)
