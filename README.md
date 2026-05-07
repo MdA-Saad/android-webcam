@@ -1,70 +1,105 @@
-![Latency](https://img.shields.io/badge/latency-35ms-brightgreen)
-# Use android phone as virtual webcam on linux with low latency
-### A Low-Latency, Open-Source Approach using `scrcpy` and `v4l2loopback`
-### The "Pro" Linux Pipe (`scrcpy` + `v4l2`)
-This method treats your phone like a raw hardware sensor. It uses **ADB (Android Debug Bridge)** to tunnel a raw video stream directly into the Linux kernel. There is no middleman, no heavy UI, and no "Pro" subscription required.
+# Android-Webcam: The "Pro" Linux Pipe
+![Latency](https://img.shields.io/badge/latency-~35ms-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-Linux-orange)
 
-## Comparison with existing methods
-When choosing how to bridge your phone to your PC, there are three common architectural paths. Here is how they compare qualitatively:
---- 
+Turn your Android phone into a high-performance, low-latency virtual webcam for Linux. No proprietary apps, no subscriptions, and zero privacy compromises.
+
+---
+
+## Why this exists?
+Most "Phone-as-Webcam" solutions rely on closed-source drivers or laggy network streams. This project uses a **direct hardware-to-kernel pipe** to achieve near-zero latency by leveraging `scrcpy` and the Linux `v4l2loopback` module.
+
+> **The Result:** Your Linux system treats your phone exactly like a physical USB webcam.
+
+---
+
+## 📊 Comparison
 | Method | Latency | Privacy | Quality |
-| :--- | :--- | :--- | :--- | :--- |
-| **Commercial Apps (DroidCam, etc.)** | Moderate | Closed Source| Capped (Free) / Good (Paid) |
-| **Browser-Based (IP Cam)** | High | Moderate | moderate |
-| **The `scrcpy` + `v4l2` Pipe** | **Minimal** | High (Open Source) | **Uncapped (Raw Sensor)** |
+| :--- | :--- | :--- | :--- |
+| **Commercial Apps (DroidCam, etc.)** | Moderate | Closed Source | Capped (Free) |
+| **Browser-Based (IP Cam)** | High | Moderate | Compressed |
+| **Linux Pipe (`scrcpy` + `v4l2`)** | **Minimal (~35ms)** | **Open Source** | **Raw Sensor Output** |
+
 ---
 
 ## Tech Stack
-To understand why this solution is superior, we need to look at the two pillars it stands on:
-
-### **1. scrcpy (Screen Copy)**
-`scrcpy` is a legend in the Android-Linux world. It works by pushing a tiny Java server to your phone that captures the screen (or camera) and streams it as raw H.264/H.265 video frames.
-*   **Why it's fast:** It uses hardware-accelerated encoding on the phone.
-*   **The "Camera" Flag:** Modern versions of `scrcpy` allow you to bypass the screen entirely and pull data directly from the camera sensor (`--video-source=camera`).
-
-### **2. v4l2loopback**
-Linux handles video devices through a framework called **Video4Linux2**. Usually, these are physical USB devices. `v4l2loopback` is a kernel module that creates **virtual** video devices.
-*   **The "Pipe" Analogy:** Imagine a physical pipe. You "pour" the video stream from `scrcpy` into one end, and to the rest of your OS (Zoom, OBS, Discord), the other end of the pipe looks exactly like a plugged-in USB webcam.
+*   **scrcpy:** Captures the camera sensor via ADB using hardware-accelerated H.264/H.265 encoding.
+*   **v4l2loopback:** A kernel module that creates the "virtual pipe" (`/dev/videoN`) for your OS to read.
 
 ---
 
-## 🚀 How the Pipeline Works
+## How it Works
 
-The data flows through your system in a lean, direct path:
 
-1.  **Capture:** Your phone's hardware encoder compresses the camera feed.
-2.  **Transport:** The frames travel over a USB cable (via ADB) as a raw byte stream.
-3.  **Bridge:** `scrcpy` receives these bytes on your PC and pipes them into `/dev/videoX`.
-4.  **Consumption:** Your Linux kernel presents `/dev/videoX` as a standard UVC Webcam.
+1.  **Capture:** Your phone hardware compresses the feed.
+2.  **Transport:** Frames travel over USB/ADB as a raw byte stream.
+3.  **Bridge:** `scrcpy` pipes bytes into `/dev/video10`.
+4.  **Consumption:** Linux presents it as a standard **UVC Webcam**.
 
 ---
 
-## Usage
+## Requirements
+*   **OS:** Linux (Ubuntu/Kubuntu, Fedora, Arch, etc.)
+*   **Mobile:** Android with **USB Debugging** enabled.
+*   **Cable:** USB 3.0 recommended for 1080p+ resolutions.
 
-### **Step 1: Clone repo**
+---
+
+## Quick Start
+
+### 1. Clone & Setup
 ```bash
-git clone .....
+git clone https://github.com/MdA-Saad/android-webcam.git
+cd android-webcam
+chmod +x *.sh
 ```
-### **Step 2: change directory to this project directory**
-```bash
-cd ..
-```
-### **Step 3: Install the dependencies**
+
+### 2. Install Dependencies
 ```bash
 ./install.sh
 ```
-### **Step 4: Run script**
+
+### 3. Configure & Launch
 ```bash
+cp config.example.conf config.conf
+# Edit config.conf with text editor to set your resolution/device ID
 ./start-webcam.sh
 ```
----
-
-## Why Use This?
-*   **Privacy:** No 3rd party servers. Your video never leaves the USB cable.
-*   **Performance:** Low CPU overhead on your PC or laptop.
-*   **Flexibility:** Use your phone’s high-end lenses (Wide-angle, Macro, or Telephoto) as a webcam for your Linux desktop.
 
 ---
 
-**Contribute to the Project:**
-*If you find this useful, feel free to fork this repo, add a GUI, or improve the automation scripts!*
+## Optional: AI Object Detection
+If you want to use your phone as an AI-powered smart camera, we provide a YOLOv8 integration.
+
+**Install AI Extras:**
+```bash
+pip install -r requirements-cv.txt
+```
+
+**Run Detection:**
+```bash
+# Uses the camera stream on /dev/video10 (set in config)
+python3 detect.py --dev 10
+```
+
+---
+
+## Privacy & Performance
+*   **Total Privacy:** Data never leaves your USB cable. No cloud servers involved.
+*   **Battery Efficient:** Uses the phone's dedicated H.264 encoder chip.
+*   **Linux Native:** Works perfectly with Zoom, Discord, OBS, and Teams.
+
+---
+
+### Contributing
+Found a bug or want to add a GUI? 
+1. Fork the Project.
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your Changes (`git commit -m 'Add AmazingFeature'`).
+4. Push to the Branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
+
+---
+
+**Made with ❤️ for the Linux Community.**
