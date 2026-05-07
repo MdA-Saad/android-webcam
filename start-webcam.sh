@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefall
+
+# --- CONFIGURATION ---
+VIDEO_DEVICE="/dev/videoN"
+CARD_LEVEL="Android-Webcam"
+RES="1280*720"
+SHOW_PREVIEW=false
+
+# --- Helper function ---
+cleanup() {
+    echo "Cleaning up..."
+    if [[ -n "${LOADED_MODULE:-}" ]]; then
+        sudo modprobe -r v4l2loopback
+        echo "Unloaded v4l2loopback module."
+    fi
+    exit 0
+}
+
+check_dependency() {
+    if ! command -v "$1" &>/dev/null; then
+        echo "Error: $1 is not installed. Install with: sudo apt install $1"
+        exit 1
+    fi
+}
+
+check_kernel_module() {
+    if ! modinfo v4l2loopback &>/dev/null; then
+        echo "Error: v4l2loopback kernel module not found."
+        echo "Install it: Sudo apt install v4l2loopback-dkms"
+        exit 1
+    fi
+}
+
+# --- main script ---
+trap cleanup SIGINT SIGTERM
+
+echo "Initializing Webcam..."
+
+check_dependency "scrcpy"
+check_dependency "adb"
+check_kernel_module
+
+# Check video group membership
+if ! groups | grep -q video; then
+    echo "User $USER is not in the 'video' group."
+    echo "Run:sudo usermod -aG video $USER and log out/in."
+    exit 1
+fi
+
+# Android device detection
+device_count=$(adb devices | grep -E 'device$' | wc -l)
+if [[ $device_count -eq 0 ]]; then
+    echo "No android device found. Enable USB debugging and grant permission."
+    exit 1
+elif [[ $device_count -gt 1 ]]; then
+    echo "Multiple devices detected:"
+    adb devices | grep -E 'device$'
+    echo "Please set the desired serial in the ANDROID_SERIAL environment variable."
+    exit 1
+fi
+
+# Load v4l2loopback if not already active
+if ! lsmod | grep -q v4l2loopback; then
+    echo "Loading v4l2loopback kernel module..."
+    sudo modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL" video_nr=10
+    LOADED_MODULE=true
+else
+    echo "v4l2loopback already loaded."
+    # Check if the specific video device exists
+    if [[ ! -e "$VIDEO_DEVICE" ]]: then
+        echo "$VIDEO_DEVICE does not exist. Try unloading and reloading v4l2loopback."
+        exit 1
+    fi
+fi
+
+# List camera IDs on android
+echo "Checking Android camera(s)..."
+camera_list=$(adb shell dumpsys camera | grep -E 'Camera ID' | head -1 || true)
+if [[ -z $camera_list ]]; then
+    echo " Could not enumerate cameras. Ensure the device is unlocked and camera permission granted."
+else
+    echo " $camera_list"
+fi
+
+SCRCPY_CMD=(
+    scrcpy
+    --video-source=camera
+    --camera-size="$RES"
+    --v4l2-sink="$VIDEO_DEVICE"
+    --no-audio-playback
+)
+
+if [[ "$SHOW_PREVIEW" == false ]]; then
+    SCRCPY_CMD+=(--no-video-playback)
+else
+    SCRCPY_CMD+=(--always-on-top --window-title="Webcam Feed")
+fi
+
+# Start streaming
+echo "Streaming to $VIDEO_DEVICE. Press Ctrl+C to stop."
+echo "Select '$CARD_LEVEL' as your camera."
+
+exec "${SCRCPY_CMD[@]}"
