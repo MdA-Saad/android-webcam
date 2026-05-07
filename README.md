@@ -93,7 +93,7 @@ Once you have completed the installation via `./install.sh`, follow these steps 
 3.  **Identify IP:** Find your phone's IP address (Settings > About Phone > Status or WiFi settings). It usually looks like `192.168.1.XX`.
 4.  **Connect Wirelessly:** Disconnect the cable and run:
     
-```bash
+    ```bash
     adb connect [YOUR_PHONE_IP]:5555
     ```
 5.  **Launch:** Click the **Android Webcam** icon or run `./start-webcam.sh`.
