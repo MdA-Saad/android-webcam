@@ -1,0 +1,12 @@
+# Ignore local configuration
+config.conf
+
+# Ignore Python AI weights
+*.pt
+
+# Ignore virtual environments
+venv/
+__pycache__/
+
+# Ignore temporary Linux file
+.DS_Store

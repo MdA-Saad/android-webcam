@@ -2,10 +2,20 @@
 set -euo pipefall
 
 # --- CONFIGURATION ---
-VIDEO_DEVICE="/dev/videoN"
+VIDEO_NR=10
+VIDEO_DEVICE="/dev/video$VIDEO_NR"
 CARD_LEVEL="Android-Webcam"
 RES="1280*720"
 SHOW_PREVIEW=false
+
+# --- Load Config if exists ---
+if [[ -f "config.conf ]]; then
+    source config.conf
+else
+    # GUI
+    RES=$(zenity --list --title="Select Resolution" --radiolist --column="Pick" --column-"Resolution" True "1280*720" FALSE "640*480"
+    [[ -z "$RES" ]] && exit 0 # Exit if user cancels
+fi
 
 # --- Helper function ---
 cleanup() {
