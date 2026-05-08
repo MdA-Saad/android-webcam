@@ -1,4 +1,4 @@
-# Android-Webcam: The "Pro" Linux Pipe
+# Android-Webcam: Use android device as a low latency webcam
 ![Latency](https://img.shields.io/badge/latency-~35ms-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux-orange)
@@ -8,7 +8,7 @@ Turn your Android phone into a high-performance, low-latency virtual webcam for 
 ---
 
 ## Why this exists?
-Most "Phone-as-Webcam" solutions rely on closed-source drivers or laggy network streams. This project uses a **direct hardware-to-kernel pipe** to achieve near-zero latency by leveraging `scrcpy` and the Linux `v4l2loopback` module.
+Most "Phone-as-Webcam" solutions rely on closed-source drivers and applications this approach introduces extra latency which is undesirable for many machine learning and computer vision applications. This project uses a **direct hardware-to-kernel pipe** to achieve near-zero latency by leveraging `scrcpy` and the Linux `v4l2loopback` module.
 
 > **The Result:** Your Linux system treats your phone exactly like a physical USB webcam.
 
@@ -105,7 +105,7 @@ If you want to use your phone as an AI-powered smart camera, we provide a YOLOv8
 
 **Install AI Extras:**
 ```bash
-pip install -r requirements-cv.txt
+pip install -r requirements-optional.txt
 ```
 
 **Run Detection:**
@@ -119,7 +119,7 @@ python3 detect.py --dev 10
 ## Privacy & Performance
 *   **Total Privacy:** Data never leaves your USB cable. No cloud servers involved.
 *   **Battery Efficient:** Uses the phone's dedicated H.264 encoder chip.
-*   **Linux Native:** Works perfectly with Zoom, Discord, OBS, and Teams.
+*   **Linux Native:** Works perfectly with in computer vision and machine learning scripts (opencv, pytorch, etc.,) along with OBS, Zoom, google meet, etc.,
 
 ---
 
