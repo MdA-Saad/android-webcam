@@ -5,11 +5,11 @@ echo "Android Webcam - Installer"
 
 # Install system packages
 detect_distro() {
-    if command -v apt &>/dev/null: then
+    if command -v apt &>/dev/null; then
         sudo apt update
         sudo apt install -y scrcpy adb v4l2loopback-dkms
     elif command -v dnf &>/dev/null; then
-        sudo dnf install -y scrcpy adb v4l2loopback-dkms
+        sudo dnf install -y scrcpy android-tools v4l2loopback-dkms
     elif command -v pacman &>/dev/null; then
         sudo pacman -S --needed scrcpy android-tools v4l2loopback-dkms
     else
