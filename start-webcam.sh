@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-set -euo pipefall
+set -euo pipefail
 
 # --- CONFIGURATION ---
 VIDEO_NR=10
 VIDEO_DEVICE="/dev/video$VIDEO_NR"
-CARD_LEVEL="Android-Webcam"
+CARD_LABEL="Android Webcam"
 RES="1280*720"
 SHOW_PREVIEW=false
 
 # --- Load Config if exists ---
-if [[ -f "config.conf ]]; then
+if [[ -f "config.conf" ]]; then
     source config.conf
 else
     # GUI
-    RES=$(zenity --list --title="Select Resolution" --radiolist --column="Pick" --column-"Resolution" True "1280*720" FALSE "640*480"
+    RES=$(zenity --list --title="Select Resolution" --radiolist --column="Pick" --column="Resolution" True "1280*720" FALSE "640*480"
     [[ -z "$RES" ]] && exit 0 # Exit if user cancels
 fi
 
@@ -73,14 +73,14 @@ fi
 # Load v4l2loopback if not already active
 if ! lsmod | grep -q v4l2loopback; then
     echo "Loading v4l2loopback kernel module..."
-    sudo modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL" video_nr=10
+    sudo modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL" video_nr=$VIDEO_NR
     LOADED_MODULE=true
 else
-    echo "v4l2loopback already loaded."
-    # Check if the specific video device exists
-    if [[ ! -e "$VIDEO_DEVICE" ]]: then
-        echo "$VIDEO_DEVICE does not exist. Try unloading and reloading v4l2loopback."
-        exit 1
+    # Check if the device node exists; if not, the module was loaded with different params
+    if [[ ! -e "$VIDEO_DEVICE" ]]; then
+        echo "Module loaded but $VIDEO_DEVICE missing. Reloading..."
+        sudo modprobe -r v4l2loopback
+        sudo modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL video_nr=$VIDEO_NR
     fi
 fi
 

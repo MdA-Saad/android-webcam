@@ -38,7 +38,7 @@ Type=Application
 Name=Android Webcam
 Comment=Use android device as a webcam
 Exec=$APP_PATH
-Terminal=true
+Terminal=false
 Categories=AudioVideo;Video;
 EOF
 

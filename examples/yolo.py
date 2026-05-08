@@ -15,7 +15,7 @@ except ImportError:
     sys.exit(1)
 
 def main():
-    parser = argparse.ArgumentParser(description="YOLOv8 detection on Android webcam")
+    parser = argparse.ArgumentParser(description="YOLOv8 detection via Android webcam")
     parser.add_argument(
             "--dev",
             type=int,
@@ -23,7 +23,7 @@ def main():
             help="The N in /dev/videoN (default: 10)"
     )
     args = parser.parse_args()
-    video_device = f"/dev/video{args.dev}"
+    CAM_DEVICE = f"/dev/video{args.dev}"
     # Load yolo nano (for speed)
     try:
         model=YOLO("yolo8n.pt")
@@ -32,9 +32,9 @@ def main():
         sys.exit()
 
     # Virtual Camera
-    cap = cv2.VideoCapture("/dev/videoN")
+    cap = cv2.VideoCapture(CAM_DEVICE)
     if not cap.isOpened():
-        print("Error: Cannot open /dev/video$N")
+        print(f"Error: Cannot open {CAM_DEVICE}")
         sys.exit()
 
     # Set internal buffer to small to reduce lag

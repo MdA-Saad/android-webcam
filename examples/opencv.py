@@ -10,7 +10,7 @@ try:
     import cv2
 except ImportError:
     print(" Error: Missing dependencies!")
-    print(" Please run: pip install -r requirements-optional.txt")
+    print(" Please run: pip install opencv-python")
     sys.exit(1)
 
 def main():
