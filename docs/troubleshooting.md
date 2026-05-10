@@ -49,14 +49,14 @@ sudo modprobe v4l2loopback exclusive_caps=1 video_nr=10
 
 * **Fix:** **Build from source.** Follow the custom build guide to get the latest features.
 
-* **Why Universal Packages (Snap/Flatpak) are Discouraged:**
-* **Confinement:** Sandboxed apps cannot "see" `/dev/video10` without complex manual overrides.
-* **Interface Mismatches:** You may encounter errors like `Content snap command-chain not found` or `snapd has no content interface slots` due to GPU driver mismatches.
-* **Latency:** The sandbox layers can introduce lag, which is critical for a webcam feed.
-
 * **Path Conflict:** You installed a new version, but the script still finds an old `apt` version.
 
 * **Fix:** Remove the old version: `sudo apt remove scrcpy`
+
+### Why Universal Packages (Snap/Flatpak) are Discouraged:
+* **Confinement:** Sandboxed apps cannot "see" `/dev/video10` without complex manual overrides.
+* **Interface Mismatches:** You may encounter errors like `Content snap command-chain not found` or `snapd has no content interface slots` due to GPU driver mismatches.
+* **Latency:** The sandbox layers can introduce lag, which is critical for a webcam feed.
 
 ---
 
