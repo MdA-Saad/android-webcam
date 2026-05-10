@@ -1,6 +1,6 @@
 # Ignore local configuration
 config.conf
-
+build-packages
 # Ignore Python AI weights
 *.pt
 

@@ -36,8 +36,8 @@ check_executable() {
     local regex=$3
     local desired=$4
 
-    if command -v "$name" &>/dev/null; then
-        local version=$($cmd 2>/dev/null | head -n1 | grep -oE "$regex" | head -n1)
+    if command -v "${name%% *}" &>/dev/null || [ -x "$name" ]; then
+        local version=$($cmd 2>&1 | grep -oE "$regex" | sort -V | tail -n1)
         if [ -n "$version" ]; then
             if version_ge "$version" "$desired"; then
                 echo "[OK] $name: installed version $version (OK, meets desired $desired)"
@@ -59,13 +59,13 @@ check_executable() {
 
 # Check scrcpy package and its version
 check_scrcpy() {
-    local build_path="./build-packages/scrcpy/scrcpy"
+    local build_path="./build-packages/scrcpy/app/scrcpy"
     if [ -x "$build_path" ]; then
         echo "Found local scrcpy build at "$build_path
-        check_executable "$build_path" "$build_path --version" '[0-9]+\.[0-9]+(\.[0-9]+)?' "$DESIRED_SCRCPY"
+        check_executable "$build_path" "$build_path --version" '^scrcpy [0-9]+\.[0-9]+(\.[0-9]+)?' "$DESIRED_SCRCPY"
         return $?
     fi
-    check_executable "scrcpy" "scrcpy --version" '[0-9]+\.[0-9]+(\.[0-9]+)?' "$DESIRED_SCRCPY"
+    check_executable "scrcpy" "scrcpy --version" '^scrcpy [0-9]+\.[0-9]+(\.[0-9]+)?' "$DESIRED_SCRCPY"
 }
 
 # Check adb package and its version
@@ -73,7 +73,7 @@ check_adb() {
     local build_path="./build-packages/adb/adb"
     if [ -x "$build_path" ]; then
         echo "Found local adb build at "$build_path
-        check_executable "$build_path" "$build_path --version" '[0-9]+\.[0-9]+(\.[0-9]+' "$DESIRED_ADB"
+        check_executable "$build_path" "$build_path --version" '[0-9]{2,}\.[0-9]+\.[0-9]+' "$DESIRED_ADB"
         return $?
     fi
     check_executable "adb" "adb --version" '[0-9]+\.[0-9]+\.[0-9]+' "$DESIRED_ADB"
