@@ -17,15 +17,22 @@ ADB_BIN="adb"
 
 if [[ -x "$PROJECT_ROOT/build-packages/scrcpy/scrcpy" ]]; then
     SCRCPY_BIN="$PROJECT_ROOT/build-packages/scrcpy/scrcpy"
+
+    # Point to local server file
+    if [[ -f "$PROJECT_ROOT/build-packages/scrcpy/scrcpy-server" ]]; then
+        export SCRCPY_SERVER_PATH="$PROJECT_ROOT/build-packages/scrcpy/scrcpy-server"
+    else
+        echo "Warning: Custom scrcpy binary found, but scrcpy-server is missing in $PROJECT_ROOT/build-packages/scrcpy/scrcpy-server"
+    fi
 fi
 
-if [[ -x "$PROJECT_ROOT/buil-packages/scrcpy/scrcpy" ]]; then
+if [[ -x "$PROJECT_ROOT/buil-packages/adb/adb" ]]; then
     ADB_BIN="$PROJECT_ROOT/build-packages/adb/adb"
 fi
 
 # --- Load Config if exists ---
 if [[ -f "$PROJECT_ROOT/config.conf" ]]; then
-    source "$SOURCE_ROOT/config.conf"
+    source "$PROJECT_ROOT/config.conf"
 #else
     # GUI
    # RES=$(zenity --list --title="Select Resolution" --radiolist --column="Pick" --column="Resolution" True "1280*720" FALSE "640*480")
@@ -77,7 +84,7 @@ if ! groups | grep -q video; then
 fi
 
 # Android device detection
-device_count=$(adb devices | grep -E 'device$' | wc -l)
+device_count=$("$ADB_BIN" devices | grep -E 'device$' | wc -l)
 if [[ $device_count -eq 0 ]]; then
     echo "No android device found. Enable USB debugging and grant permission."
     exit 1
@@ -108,13 +115,15 @@ camera_list=$("$ADB_BIN" shell dumpsys camera | grep -E 'Camera ID' | head -1 ||
 if [[ -z $camera_list ]]; then
     echo " Could not enumerate cameras. Ensure the device is unlocked and camera permission granted."
 else
-    echo " Found:$camera_list"
+    echo " Found: $camera_list"
 fi
 
+CAMERA_ID="1" # 0 for back and 1 for front
 SCRCPY_CMD=(
     "$SCRCPY_BIN"
     --video-source=camera
     --camera-size="$RES"
+    --camera-id="$CAMERA_ID"
     --v4l2-sink="$VIDEO_DEVICE"
     --no-audio-playback
 )
