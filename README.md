@@ -1,8 +1,9 @@
 <p align="center">
     <img src="assets/android-webcam.png" width="350" title="android-webcam">
 </p>
+
 # Android-Webcam: Use android device as a low latency webcam
-![Latency](https://img.shields.io/badge/latency-~35ms-brightgreen)
+
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux-orange)
 
