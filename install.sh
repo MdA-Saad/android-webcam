@@ -2,11 +2,20 @@
 set -euo pipefail
 
 echo "Android Webcam - Installer"
+
+# REQUIRED VERSIONS
 DESIRED_SCRCPY="2.0"
 DESIRED_ADB="30.0.0"
 DESIRED_V4L2="0.12.0"
 pm=""
 v4l2_installed=false
+
+# PATHS FOR SCRCPY APP and SERVER
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUILD_PACKAGES="$PROJECT_ROOT/build-packages"
+ICON_FILE="$PROJECT_ROOT/assests/android-webcam.png" # using system icons
+APP_PATH="$PROJECT_ROOT/src/main.sh"
+
 # Function to compare versions
 version_ge() {
     [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
@@ -41,7 +50,6 @@ check_executable() {
         if [ -n "$version" ]; then
             if version_ge "$version" "$desired"; then
                 echo "[OK] $name: installed version $version (OK, meets desired $desired)"
-                v4l2_installed=true
                 return 0
             else
                 echo "[WARN] $name: installed version $version (OLDER than desired $desired)"
@@ -59,7 +67,7 @@ check_executable() {
 
 # Check scrcpy package and its version
 check_scrcpy() {
-    local build_path="./build-packages/scrcpy/app/scrcpy"
+    local build_path="$BUILD_PACKAGES/scrcpy"
     if [ -x "$build_path" ]; then
         echo "Found local scrcpy build at "$build_path
         check_executable "$build_path" "$build_path --version" '^scrcpy [0-9]+\.[0-9]+(\.[0-9]+)?' "$DESIRED_SCRCPY"
@@ -70,7 +78,7 @@ check_scrcpy() {
 
 # Check adb package and its version
 check_adb() {
-    local build_path="./build-packages/adb/adb"
+    local build_path="$BUILD_PACKAGES/adb"
     if [ -x "$build_path" ]; then
         echo "Found local adb build at "$build_path
         check_executable "$build_path" "$build_path --version" '[0-9]{2,}\.[0-9]+\.[0-9]+' "$DESIRED_ADB"
@@ -81,33 +89,34 @@ check_adb() {
 
 check_v4l2() {
     local desired=$DESIRED_V4L2
+    local version=""
 
     if lsmod | grep -q v4l2loopback; then
-        local version=$(modinfo v4l2loopback 2>/dev/null | grep "^version:" | head -n1 | awk '{print$2}')
-        if [ -n "$version" ]; then
-            if version_ge "$version" "$desired"; then
-                echo "v4l2loopback: loaded version $version (OK, meets desired $desired)"
-                return 0
-            else
-                echo "v4l2loopback: loaded version $version (OLDER, than desired $desired)"
-                return 2
-            fi
+        version=$(modinfo v4l2loopback 2>/dev/null | grep "^version:" | head -n1 | awk '{print$2}')
+        echo "[OK] v4l2loopback: currently loaded (Version: ${version:-unknown})"
+        v4l2_installed=true
+
+    # If not loaded, check if the module is available in the system
+    elif modinfo v4l2loopback &>/dev/null; then
+        version=$(modinfo v4l2loopback | grep "^version:" | awk '{print $2}')
+        echo "[OK] v4l2loopback: installed but not loaded (Version: ${version:-unknown})"
+        v4l2_installed=true
+    else
+        echo "[WARN] v4l2loopback: Couldn't find the module in lsmod or modinfo"
+        v4l2_installed=false
+        return 1
+    fi
+    echo "$version"
+    if [ -n "$version" ]; then
+        if version_ge "$version" "$desired"; then
+            echo "v4l2loopback: loaded version $version (OK, meets desired $desired)"
+            return 0
         else
-            echo "v4l2loopback: loaded but version unknown"
-            return 1
-        fi
-    elif [ -f "/lib/modules/$(uname -r)/kernel/drivers/media/v4l2-loopback/v4l2loopback.ko" ] || \
-        [ -f "/lib/modules/$(uname -r)/extra/v4l2loopback.ko" ]; then
-        local version=$(modinfo v4l2loopback 2>/dev/null | grep "^version:" | awk '{print $2}')
-        if [ -n "$version" ]; then
-            echo "v4l2loopback: available (not loaded) version $version (OLDER than desired $desired)"
+            echo "v4l2loopback: loaded version $version (OLDER, than desired $desired)"
             return 2
-        else
-            echo "v4l2loopback: available (not loaded) but version unknown"
-            return 1
         fi
     else
-        echo "v4l2loopback: not installed"
+        # echo "v4l2loopback: loaded but version unknown"
         return 1
     fi
 }
@@ -209,6 +218,7 @@ fi
 echo "=== Resolving Dependencies ==="
 resolve_package "scrcpy" "$DESIRED_SCRCPY" "check_scrcpy"
 resolve_package "adb" "$DESIRED_ADB" "check_adb"
+check_v4l2 || true
 
 if [ -f "config.example.conf" ]; then
     echo "Creating config.conf from template..."
@@ -224,9 +234,9 @@ if ! groups | grep -q video; then
     need_reboot=true
 fi
 
-if [ -f "start-webcam.sh" ]; then
-    APP_PATH=$(realpath "start-webcam.sh")
-    ICON_PATH="camera-web" # Standard system icon
+if [ -f "$APP_PATH" ]; then
+    APP_PATH="$APP_PATH"
+    ICON_PATH="$ICON_FILE" # Standard system icon
     cat <<EOF > android-webcam.desktop
 [Desktop Entry]
 Version=1.0
@@ -234,7 +244,7 @@ Type=Application
 Name=Android Webcam
 Comment=Use android device as a webcam
 Exec=$APP_PATH
-Icon=$ICON_PATH
+Icon="$ICON_FILE"
 Terminal=false
 Categories=AudioVideo;Video;
 EOF
@@ -242,19 +252,22 @@ EOF
     mkdir -p ~/.local/share/applications
     mv android-webcam.desktop ~/.local/share/applications/
     chmod +x ~/.local/share/applications/android-webcam.desktop
+    echo "----------------------------------------------------------------"
+    echo "Installation complete."
+    echo "A shortcut has been added to your application Menu."
+
+    echo "Next step: Please complete the next steps and connect your android device and run ./main.sh"
+    echo "----------------------------------------------------------------"
 else
     echo "[WARN] start-webcam.sh not found in current directory. Shortcut not created."
 fi
 
-echo "----------------------------------------------------------------"
-echo "Installation complete."
-echo "A shortcut has been added to your application Menu."
+
 if [ "$need_reboot" = true ]; then
     echo "[IMPORTANT] Please reboot to apply group permissions."
 fi
 if [ "$v4l2_installed" = false ]; then
     echo "[!] Reminder: Please install desired version of v4l2loopback for your distribution before the next step."
 fi
-echo "Next step: Connect your android device and run ./start-webcam.sh"
-echo "----------------------------------------------------------------"
+
 
