@@ -1,4 +1,6 @@
-![Project Logo](assests/android-webcam.png)
+<p align="center">
+    <img src="assets/android-webcam.png" width="350" title="android-webcam">
+</p>
 # Android-Webcam: Use android device as a low latency webcam
 ![Latency](https://img.shields.io/badge/latency-~35ms-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -60,10 +62,8 @@ chmod +x *.sh
 ./install.sh
 ```
 
-### 3. Configure & Launch
+### 3. Launch
 ```bash
-cp config.example.conf config.conf
-# Edit config.conf with text editor to set your resolution/device ID
 ./start-webcam.sh
 ```
 ---
