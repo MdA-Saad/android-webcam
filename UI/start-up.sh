@@ -37,7 +37,7 @@ while true; do
     LOOP_STATUS=${PIPESTATUS[0]}
 
     if [ $LOOP_STATUS -eq 0 ]; then
-        konsole -e bash "$TARGET_SCRIPT" >/dev/null 2>&1 & #nohop doenst open a terminal window
+        (bash "$TARGET_SCRIPT" >/dev/null 2>&1) & #Only () works nohop need env variables, thats why using () around this line
         while true; do
             zenity --question \
                 --title="Android Webcam" \
