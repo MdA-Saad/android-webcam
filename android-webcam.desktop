@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Android Webcam
+Comment=Use android device as a webcam
+Exec=env ADW_DISABLE_PORTAL=1 bash /home/saad/Documents/Projects/android-webcam/UI/start-up.sh
+Icon=/home/saad/Documents/Projects/android-webcam/assets/android-webcam.png
+Terminal=false
+Categories=AudioVideo;Video;

@@ -1,31 +1,60 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
+# ======================================================================
+# android-webcam - MIT License
+#
+# This script uses scrcpy (Apache 2.0) and v4l2loopback (GPL 2.0) 
+# See CREDITS.md for full license details.
+# ======================================================================
+
 set -euo pipefail
 
-# Absolute path to the project directory
-SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# ABSOLUTE PATHS
+
+SCRIPT_PATH="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_PATH")"
 BUILD_PATH="$PROJECT_ROOT/build-packages"
-ICON_FILE="$PROJECT_ROOT/assests/android-webcam.png"
-
-# DEFINE VARIABLES
-LEGACY_MODE=${LEGACY_MODE:-false}
-PLAY_AUDIO=${PLAY_AUDIO:-false}
-
-# Using my camera icon
-export SCRCPY_ICON_PATH="$ICON_FILE"
-
-# --- Load Config if exists ---
-if [[ -f "$PROJECT_ROOT/config.conf" ]]; then
-    source "$PROJECT_ROOT/config.conf"
-fi
+ICON_FILE="$PROJECT_ROOT/assets/android-webcam.png"
 
 # --- CONFIGURATION ---
-VIDEO_NR=${VIDEO_NR:-10}
-VIDEO_DEVICE="/dev/video$VIDEO_NR"
+
+VIDEO_NR=${VIDEO_NR:-"10"}
 CARD_LABEL=${CARD_LABEL:-"Android Webcam"}
 RES=${RES:-"1280x720"} # scrcpy uses 'x' instead of *
-SHOW_PREVIEW=${SHOW_PREVIEW:-false}
+SHOW_PREVIEW=${SHOW_PREVIEW:-"true"}
 CAMERA_ID=${CAMERA_ID:-"1"} # 1 for front and 0 for back camera
+CONFIG_PATH="$PROJECT_ROOT/config.conf"
+LEGACY_MODE=${LEGACY_MODE:-"false"}
+NO_AUDIO=${NO_AUDIO:-"true"}
+AUDIO_PLAY_BACK=${PLAY_AUDIO:-"false"}
+MAX_FPS=${MAX_FPS:-"30"}
+MAX_SIZE=${MAX_SIZE:-"1280"}
+BIT_RATE=${BIT_RATE:-"4M"}
+VIDEO_BUFFER=${VIDEO_BUFFER:-"0"}
+CODEC=${CODEC:-"h264"}
+ALWAYS_ON_TOP=${ALWAYS_ON_TOP:-"true"}
+
+
+# CAMERA ICON PNG FILE
+
+export SCRCPY_ICON_PATH="$ICON_FILE"
+
+# --- CREATING CONFIG FILE IF NOT EXISTS ---
+
+if [[ -f "$CONFIG_PATH" ]]; then
+    echo "Loading configurations..."
+    while IFS='=' read -r key val; do
+        [[  "$key" =~ ^#.*$ ]] || [[ -z "$key" ]] && continue
+        val=$(echo "$val" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+        export "$key=$val"
+    done < "$CONFIG_PATH"
+    source "$CONFIG_PATH"
+fi
+
+# Setting video device after setting the config file because this is a dependent variable.
+VIDEO_DEVICE="/dev/video$VIDEO_NR"
+
+# Checking scrcpy and adb installation
 
 if [[ -x "$BUILD_PATH/scrcpy" ]]; then
     SCRCPY_BIN="$BUILD_PATH/scrcpy"
@@ -49,17 +78,29 @@ fi
 
 # --- Helper function ---
 cleanup() {
-    echo "Cleaning up..."
+    echo ""
+    echo "-----------------------------------------------------------------------"
+    echo "Shutting down webcam..."
 
     # Give scrcpy and the system a moment to release the device
     sleep 1
+    
+    # Kill any stray scrcpy processes tied to this script, trap usually handles this but its safe backup
+    pkill -P $$ scrcpy 2>/dev/null || true
 
 
-
-    if [[ -n "${LOADED_MODULE:-}" ]]; then
-        sudo modprobe -r v4l2loopback
-        echo "Unloaded v4l2loopback module."
+    # Only unload the module if this script were the ones who loaded it
+    # This prevents accidentally killing other virtual cameras
+    if [[ "${LOADED_MODULE:-false}" == "true" ]]; then
+        #echo "Unloading v4l2loopback module..."
+        #pkexec modprobe -r v4l2loopback 2>/dev/null || echo "[INFO] Module busy; skipping unload."
+        exit 0
+    else
+        echo "v4l2loopback remains loaded (was active before script start)."
     fi
+
+    echo "Done. See you next time!"
+    echo "-----------------------------------------------------------------------"
     exit 0
 }
 
@@ -98,10 +139,11 @@ if ! groups | grep -q video; then
 fi
 
 # Android device detection
-device_count=$("$ADB_BIN" devices | grep -c -E '\bdevice\b' || true)
+"$ADB_BIN" start-server &>/dev/null
+device_count=$("$ADB_BIN" devices | awk 'NR>1 && $2=="device" {count++} END {print count+0}')
 if [[ $device_count -eq 0 ]]; then
     echo "No android device found. Enable USB debugging and grant permission."
-    # exit 1
+    exit 1
 elif [[ $device_count -gt 1 ]]; then
     echo "Multiple devices detected:"
     "$ADB_BIN" devices | grep -E '\bdevice\b' || true
@@ -110,17 +152,47 @@ elif [[ $device_count -gt 1 ]]; then
 fi
 
 # Load v4l2loopback if not already active
-if ! lsmod | grep -q v4l2loopback; then
-    echo "Loading v4l2loopback kernel module..."
-    sudo modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL" video_nr=$VIDEO_NR
+if ! lsmod | grep -q v4l2loopback && [[ -e "$VIDEO_DEVICE" ]]; then
+    echo "[OK] Virtual camera $VIDEO_DEVICE is already running."
     LOADED_MODULE=true
 else
     # Check if the device node exists; if not, the module was loaded with different params
-    if [[ ! -e "$VIDEO_DEVICE" ]]; then
-        echo "Module loaded but $VIDEO_DEVICE missing. Reloading..."
-        sudo modprobe -r v4l2loopback
-        sudo modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL" video_nr=$VIDEO_NR
+    echo "Loading modprobe module for this session..."
+    if lsmod | grep -q v4l2loopback; then
+        pkexec modprobe -r v4l2loopback 2>/dev/null || true
     fi
+    pkexec modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL" video_nr="$VIDEO_NR"
+    LOADED_MODULE=true
+fi
+
+# Checking android version
+echo "Checking android version"
+check_android_sdk() {
+    local sdk_version
+    sdk_version=$("$ADB_BIN" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')
+
+    if [ -z "$sdk_version" ] || ! [[ "$sdk_version" =~ ^[0-9]+$ ]]; then
+        return 2
+    fi
+
+    if [ "$sdk_version" -lt 31 ]; then
+        LEGACY_MODE="true"
+        return 0
+    else
+        LEGACY_MODE="false"
+        return 1
+    fi
+}
+
+CHECK_ANDROID_SDK_STATUS=0
+check_android_sdk || CHECK_ANDROID_SDK_STATUS=$?
+
+if [ "$CHECK_ANDROID_SDK_STATUS" -eq 2 ]; then
+    echo "Error: Device not found or unauthorized."
+elif [ "$LEGACY_MODE" = "true" ]; then
+    echo "Legacy mode enabled (< Android 12)"
+else
+    echo "Modern pipeline enabled (>= Android 12)"
 fi
 
 # List camera IDs on android
@@ -134,21 +206,55 @@ else
     echo " Found: $camera_list"
 fi
 
-CAMERA_ID="1" # 0 for back and 1 for front
+# Common performance flags
 SCRCPY_CMD=(
     "$SCRCPY_BIN"
-    --video-source=camera
-    --camera-size="$RES"
-    --camera-id="$CAMERA_ID"
     --v4l2-sink="$VIDEO_DEVICE"
-    --no-audio-playback
+    --video-buffer="$VIDEO_BUFFER"
+    --video-bit-rate="$BIT_RATE"
+    --window-title="$CARD_LABEL"
 )
 
-if [[ "$SHOW_PREVIEW" == false ]]; then
-    SCRCPY_CMD+=(--no-video-playback)
-else
-    SCRCPY_CMD+=(--always-on-top --window-title="Webcam Feed")
+# Add audio flag true--NO_AUDIO
+if [[ "$NO_AUDIO" == "true" ]]; then
+    SCRCPY_CMD+=("--no-audio")
+    echo "AUDIO is disabled"
 fi
+
+# Add flag for audio playback
+if [[ "$AUDIO_PLAY_BACK" == "false" ]]; then
+    SCRCPY_CMD+=("--no-audio-playback")
+    echo " [OFF] AUDIO is mute"
+fi
+
+# Add window flag
+if [[ "$SHOW_PREVIEW" == "false" ]]; then
+    SCRCPY_CMD+=("--no-window")
+    echo "NO PREVIEW mode"
+fi
+
+if [[ "$ALWAYS_ON_TOP" == "true" ]] && [[ "$SHOW_PREVIEW" == "true" ]]; then
+    SCRCPY_CMD+=("--always-on-top")
+    echo "ALWAYS ON TOP mode activated"
+fi
+
+if [[ "$LEGACY_MODE" == "true" ]]; then
+    SCRCPY_CMD+=(
+        "--stay-awake"
+        "--max-fps" "$MAX_FPS"
+        "--max-size" "$MAX_SIZE"
+    )
+    echo "[INFO] Running in LEGACY MODE. Please open the Camera APP on your phone."
+else
+    SCRCPY_CMD+=(
+        "--video-source=camera"
+        "--camera-size=$RES"
+        "--camera-id=$CAMERA_ID"
+        "--video-codec=$CODEC"
+    )
+    echo "[INFO] Running latest MODE camera capture"
+fi
+
 
 # Start streaming
 echo " -----------------------------------------------------------------"

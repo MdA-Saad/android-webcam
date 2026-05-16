@@ -28,7 +28,7 @@ def main():
 
 
     print(f"Opening {CAM_DEVICE}...")
-    cap = cv2.VideoCapture(CAM_DEVICE)
+    cap = cv2.VideoCapture(CAM_DEVICE, cv2.CAP_V4L2)
     if not cap.isOpened():
         print("Error: Cannot open camera. Is the webcam script running?.")
         return

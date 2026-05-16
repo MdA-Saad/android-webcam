@@ -1,4 +1,13 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
+# ======================================================================
+# android-webcam - MIT License
+#
+# This script automates the build of scrcpy (Apache 2.0) 
+# See CREDITS.md for full license details.
+# ======================================================================
+
+
 set -euo pipefail
 
 # --- CONFIGURATION ---
@@ -12,6 +21,12 @@ INSTALL_DIR="$PROJECT_ROOT/build-packages"
 
 echo "Checking distribution and installing dependencies..."
 
+# Ensures scrcpy_version is not empty
+if [[ -z "$SCRCPY_VERSION" ]]; then
+    echo "[ERROR]: Could not fetch latest scrcpy version from GitHub. Check your internet connection."
+    exit 1
+fi
+
 # --- 1. DETECT DISTRO & INSTALL DEPENDENCIES ---
 if command -v apt &> /dev/null; then
     echo "Detected Debian/Ubuntu-based system."
@@ -20,8 +35,16 @@ if command -v apt &> /dev/null; then
                      gcc git pkg-config meson ninja-build libavcodec-dev \
                      libavdevice-dev libavformat-dev libavutil-dev \
                      libswresample-dev libusb-1.0-0-dev libsdl2-dev
+elif command -v dnf &> /dev/null; then
+    echo "Detected Fedora/RHEL-based system."
+    sudo dnf install -y gcc git meson ninja-build libusb1-devel SDL2-devel \
+        ffmpeg-devel libX11-devel wget adb
+elif command -v pacman &> /dev/null; then
+    echo "Detected Arch-based system."
+    sudo pacman -S --needed --noconfirm base-devel meson ninja git \
+        ffmpeg libusb sdl2 wget android-tools
 else
-    echo "Please install dependencies manually."
+    echo "Unsupported distro, Please manually install dependencies (ffmpeg, libusb, sdl2, meson, ninja)."
     exit 1
 fi
 
@@ -30,22 +53,29 @@ fi
 echo "Downloading pre-built server $SCRCPY_VERSION..."
 mkdir -p "$INSTALL_DIR"
 echo "Downloading server"
-wget "https://github.com/Genymobile/scrcpy/releases/download/$SCRCPY_VERSION/scrcpy-server-$SCRCPY_VERSION" \
-     -O "$INSTALL_DIR/scrcpy-server"
+wget -q --show-progress "https://github.com/Genymobile/scrcpy/releases/download/$SCRCPY_VERSION/scrcpy-server-$SCRCPY_VERSION" -O "$INSTALL_DIR/scrcpy-server"
 
 # --- 3. CLONE AND BUILD CLIENT ---
 mkdir -p "$PROJECT_ROOT/builds"
 if [ ! -d "$SOURCE_DIR" ]; then
-    git clone https://github.com/Genymobile/scrcpy "$PROJECT_ROOT/builds/scrcpy_source"
+    git clone https://github.com/Genymobile/scrcpy "$SOURCE_DIR"
 fi
 cd "$SOURCE_DIR"
 git fetch --all
+git reset --hard "origin/$SCRCPY_VERSION" || git reset --hard "$SCRCPY_VERSION"
 git checkout "$SCRCPY_VERSION"
 
 echo "Configuring build..."
 # We tell meson to use the server we just downloaded
-meson setup "$BUILD_WORK_DIR" --buildtype=release --strip -Db_lto=true \
-    -Dprebuilt_server="$INSTALL_DIR/scrcpy-server" --reconfigure
+# Using "Setup or Reconfigure patter"
+# Common flags used in both scenarios
+MESON_FLAGS=("--buildtype=release" "--strip" "-Db_lto=true" "-Dprebuilt_server=$INSTALL_DIR/scrcpy-server")
+
+if [ -d "$BUILD_WORK_DIR" ]; then
+    meson setup "$BUILD_WORK_DIR" --reconfigure "${MESON_FLAGS[@]}"
+else
+    meson setup "$BUILD_WORK_DIR" "${MESON_FLAGS[@]}"
+fi
 
 echo "Compiling..."
 ninja -C "$BUILD_WORK_DIR"
@@ -57,9 +87,9 @@ cp "$BUILD_WORK_DIR/app/scrcpy" "$INSTALL_DIR/"
 # CLEANUP
 # Only delete the source and meson build work if the binary exists
 if [ -f "$INSTALL_DIR/scrcpy" ]; then
-    echo "Build successfully. Cleaning up temporary build files..."
-    rm -rf "$BUILD_WORK_DIR" # Be careful with the use of command `rm -rf`
-    rm -rf "$SOURCE_DIR" # This is optional to remove
+    echo "[OK] Build successfully. Initiating cleanup.."
+    echo "Temporary files left in: $BUILD_WORK_DIR and $SOURCE_DIR"
+    echo "[DELETE] temporary files manually to save storage."
 fi
 
 echo "-------------------------------------------------------"

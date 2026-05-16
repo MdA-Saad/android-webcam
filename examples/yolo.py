@@ -26,13 +26,13 @@ def main():
     CAM_DEVICE = f"/dev/video{args.dev}"
     # Load yolo nano (for speed)
     try:
-        model=YOLO("yolo8n.pt")
+        model=YOLO("yolov8n.pt")
     except Exception as e:
         print(f"Error loading model: {e}")
         sys.exit()
 
     # Virtual Camera
-    cap = cv2.VideoCapture(CAM_DEVICE)
+    cap = cv2.VideoCapture(CAM_DEVICE,cv2.CAP_V4L2)
     if not cap.isOpened():
         print(f"Error: Cannot open {CAM_DEVICE}")
         sys.exit()
@@ -53,7 +53,7 @@ def main():
             break
 
         # Run yolo inference
-        results = model(frame, verbose=false)
+        results = model(frame, verbose=False)
 
         # Draw bouding box and labels
         annotated_frame = results[0].plot()

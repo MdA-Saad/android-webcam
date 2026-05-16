@@ -103,6 +103,30 @@ ffplay /dev/video10
 ```
 
 ---
+## 7. Application Runs Successfully But There Is No Video Feed
+**Issue:** The startup script completes without errors, and the active window/browser is open, but the video screen remains black, frozen, or says "no feed".
+
+**Cause:** An old, stale instance of the video engine or your web browser might be hung up in the background, holding onto the video stream or port resource. Even if the script launches a new instance, the old ghost process will block the fresh feed.
+
+**Solution:**
+* **Restart the Interface:** Close your web browser (or video application) completely. Ensure all tabs and windows are shut down, then relaunch it.
+* **Force Kill Stale Streams:** If restarting the browser doesn't work, open a terminal and manually kill any residual background streaming processes by running:
+  ```bash
+  pkill -f scrcpy
+  pkill -f main.sh
+  ```
+
+### 8. Removing the Kernel Module (`v4l2loopback` / `modprobe`)
+
+**Context:** Some users try removing the virtual camera kernel module (`modprobe`) using `sudo` when troubleshooting a missing video feed.
+
+**Important Note:** If your application is already running successfully but you just aren't getting a video feed, **removing or resetting the modprobe module will not fix the issue.** A missing feed is a data streaming issue (usually fixed by Step 1 above), not a module driver issue.
+
+However, if you explicitly want to unload the virtual camera loopback module from your system kernel, you can do so by running the following command:
+
+```bash
+sudo modprobe -r v4l2loopback
+```
 
 ## Still not working?
 
