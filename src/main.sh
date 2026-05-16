@@ -34,7 +34,6 @@ VIDEO_BUFFER=${VIDEO_BUFFER:-"0"}
 CODEC=${CODEC:-"h264"}
 ALWAYS_ON_TOP=${ALWAYS_ON_TOP:-"true"}
 
-
 # CAMERA ICON PNG FILE
 
 export SCRCPY_ICON_PATH="$ICON_FILE"
@@ -151,17 +150,26 @@ elif [[ $device_count -gt 1 ]]; then
     exit 1
 fi
 
-# Load v4l2loopback if not already active
+# Load v4l2loopback if already active
 if ! lsmod | grep -q v4l2loopback && [[ -e "$VIDEO_DEVICE" ]]; then
     echo "[OK] Virtual camera $VIDEO_DEVICE is already running."
     LOADED_MODULE=true
 else
     # Check if the device node exists; if not, the module was loaded with different params
     echo "Loading modprobe module for this session..."
-    if lsmod | grep -q v4l2loopback; then
-        pkexec modprobe -r v4l2loopback 2>/dev/null || true
+    SUDO_PASS=$(zenity --password --title="Android Webcam Setup" 2>/dev/null)
+    ZENITY_STATUS=$?
+    
+    if [ $ZENITY_STATUS -ne 0 ] || [ -z "$SUDO_PASS" ]; then
+        echo "Authentication cancelled by user."
+        exit 1
     fi
-    pkexec modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL" video_nr="$VIDEO_NR"
+    if lsmod | grep -q v4l2loopback; then
+        echo "$SUDO_PASS" | sudo -S modprobe -r v4l2loopback 2>/dev/null || true
+    fi
+    echo "$SUDO_PASS" | sudo -S modprobe v4l2loopback exclusive_caps=1 card_label="$CARD_LABEL" video_nr="$VIDEO_NR"
+
+    unset SUDO_PASS
     LOADED_MODULE=true
 fi
 
